@@ -1,5 +1,4 @@
 from vosk import Model, KaldiRecognizer
-from pydub import AudioSegment
 from app.config import VOSK_MODEL_PATH
 import wave
 import os
@@ -78,47 +77,3 @@ def transcribe_audio(file_path: str) -> str:
             os.remove(formatted_wav_path)
 
     return "Не распозналось"
-
-
-
-
-# def transcribe_audio(file_path: str) -> str:
-#     formatted_wav_path = None  # Инициализируем переменную заранее
-#     try:
-#         """Транскрипция аудиофайла с использованием Vosk"""
-#         # Если файл MP3, конвертируем его в WAV
-#         if file_path.endswith(('.mp3', '.ogg', '.flac')):
-#             wav_file_path = os.path.splitext(file_path)[0] + ".wav"
-#             convert_mp3_to_wav(file_path, wav_file_path)
-#             file_path = wav_file_path
-#
-#         # Приводим WAV файл к корректному формату
-#         formatted_wav_path = os.path.splitext(file_path)[0] + "_formatted.wav"
-#         ensure_wav_format(file_path, formatted_wav_path)
-#         file_path = formatted_wav_path
-#
-#         # Инициализация модели и распознавания
-#         model = Model(VOSK_MODEL_PATH)
-#         recognizer = KaldiRecognizer(model, 16000)
-#
-#         with wave.open(file_path, "rb") as wf:
-#             if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != 16000:
-#                 raise ValueError("Аудиофайл должен быть моно, с частотой дискретизации 16000 и 16-битной глубиной")
-#
-#             while True:
-#                 data = wf.readframes(4000)
-#                 if len(data) == 0:
-#                     break
-#                 if recognizer.AcceptWaveform(data):
-#                     result = recognizer.Result()
-#                     result_json = json.loads(result)
-#                     return result_json.get("text", "")
-#     except Exception as e:
-#         logging.error(f"Ошибка при транскрипции аудиофайла {file_path}: {e}")
-#         return "Не распозналось"  # Возвращаем строку по умолчанию, если что-то пошло не так
-#     finally:
-#         # Удаляем временный файл, если он был создан
-#         if formatted_wav_path and os.path.exists(formatted_wav_path):
-#             os.remove(formatted_wav_path)
-#
-#     return "Не распозналось"  # Если транскрипция не удалась

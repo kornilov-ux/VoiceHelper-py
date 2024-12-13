@@ -1,9 +1,11 @@
-from fastapi import FastAPI, File, UploadFile, Depends
+from fastapi import FastAPI, File, UploadFile, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.database import engine, get_db
 from app.audio import transcribe_audio
-from app.config import UPLOAD_DIRECTORY
+from app.config import UPLOAD_DIRECTORY, AUTH_KEY_VALUE
+from gigachat import GigaChat
+from gigachat.models import Chat, Messages, MessagesRole
 import shutil
 import os
 import logging
@@ -47,6 +49,67 @@ async def upload_audio(file: UploadFile = File(...), db: Session = Depends(get_d
     db.commit()
     db.refresh(audio_entry)
 
-    return {"id": audio_entry.id, "file_path": audio_entry.file_path, "transcription": text}
+    # return {"id": audio_entry.id, "file_path": audio_entry.file_path, "transcription": text}
+    # передаем текст в GigaChat и получаем ответ
+    try:
+        # Подготовка данных для GigaChat
+        payload = Chat(
+            messages=[
+                Messages(
+                    role=MessagesRole.USER,
+                    content=text  # Передаем текст, полученный из Vosk
+                )
+            ],
+            temperature=0.7,
+            max_tokens=100,
+        )
+
+        # Использование GigaChat API для получения ответа
+        with GigaChat(credentials=AUTH_KEY_VALUE, verify_ssl_certs=False) as giga:
+            response = giga.chat(payload)
+            # Возвращаем ответ GigaChat
+            return {"id": audio_entry.id, "file_path": audio_entry.file_path, "transcription": text,
+                    "response": response.choices[0].message.content}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Ошибка при обработке запроса: {str(e)}")
 
 
+
+
+
+
+
+
+
+# Эндпоинт для отправки транскрибированного текста в GigaChat
+# @app.post("/process-text/{audio_id}")
+# async def process_text(audio_id: int, db: Session = Depends(get_db)):
+#     try:
+#         # Получаем запись из базы данных по ID
+#         audio_entry = db.query(models.AudioFile).filter(models.AudioFile.id == audio_id).first()
+#
+#         if not audio_entry:
+#             raise HTTPException(status_code=404, detail="Audio file not found")
+#
+#         # Подготовка данных для GigaChat
+#         payload = Chat(
+#             messages=[
+#                 Messages(
+#                     role=MessagesRole.USER,
+#                     content=audio_entry.transcription  # Используем расшифрованный текст
+#                 )
+#             ],
+#             temperature=0.7,
+#             max_tokens=100,
+#         )
+#
+#         # Использование GigaChat API для получения ответа
+#         with GigaChat(credentials=AUTH_KEY_VALUE, verify_ssl_certs=False) as giga:
+#             response = giga.chat(payload)
+#
+#             return {"response": response.choices[0].message.content}
+#
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Ошибка при обработке запроса: {str(e)}")
+#
